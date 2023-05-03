@@ -15,6 +15,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+
 import java.io.*;
 
 @Controller
@@ -25,7 +26,8 @@ public class ExcelController {
             throws Exception {
 
         // 1. Excel Workbook(파일)을 생성한다. (Template을 읽어온다)
-        SXSSFWorkbook workbook = getSxssfWorkbook(request, "sampleTemplate.xlsx");
+        SXSSFWorkbook workbook = getSxssfWorkbook(request, "sampleTemplate." +
+                "xlsx");
 
         // 2. Template에는 이미 Sheet가 존재하므로, Sheet Index로 데이터를 적용할 Sheet를 가져온다.
         SXSSFSheet sheet = workbook.getSheetAt(0);
@@ -39,7 +41,7 @@ public class ExcelController {
         // 5. 생성된 Cell에 값을 입력한다.
         cell.setCellValue("value");
 
-        encodeDownload(workbook, response, "123");
+        runToExcel(workbook, response, "123");
         //download(workbook, response);
     }
 
@@ -56,7 +58,7 @@ public class ExcelController {
             XSSFWorkbook xssfWorkbook = new XSSFWorkbook(inputStream);
 
             // 4. 생성한 XSSFWorkBook을 SXSSFWorkbook으로 변환한다.
-            sxssfWorkbook = new SXSSFWorkbook(xssfWorkbook, -1);
+            sxssfWorkbook = new SXSSFWorkbook(xssfWorkbook, 10);
         } catch(Exception e) {
             // Exception 처리하세요.
         } finally {
@@ -96,13 +98,11 @@ public class ExcelController {
         InputStream inputStream = null;
         POIFSFileSystem poifsFileSystem = null;
         OPCPackage opcPackage = null;
-        OutputStream outputStream = null;
 
         try {
             // 2. mime-type을 설정한다.
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.setHeader("Content-Disposition", "Attachment; Filename=sample.xlsx");
-            response.setHeader("Set-Cookie", "fileDownload=true; path=/");
             //response.setHeader("Set-Cookie", "fileDownload=true; path=/");
 
             // 1. SXSSFWorkbook을 ByteArrayOutputStream으로 내보낸다.
@@ -114,15 +114,15 @@ public class ExcelController {
 
             poifsFileSystem = new POIFSFileSystem();
 
-            opcPackage = OPCPackage.open(inputStream);
+            opcPackage = OPCPackage.open(new ByteArrayInputStream(byteArrayOutputStream.toByteArray()));
 
             Encryptor encryptor = new EncryptionInfo(EncryptionMode.agile).getEncryptor();
             encryptor.confirmPassword(password);
 
             opcPackage.save(encryptor.getDataStream(poifsFileSystem));
 
-            outputStream = new BufferedOutputStream(response.getOutputStream());
-            poifsFileSystem.writeFilesystem(outputStream);
+            OutputStream tempstream = response.getOutputStream();
+            poifsFileSystem.writeFilesystem(tempstream);
 
         } catch (Exception e) {
             // Exception 처리하세요.
@@ -131,7 +131,6 @@ public class ExcelController {
             if(inputStream != null) inputStream.close();
             if(poifsFileSystem != null) poifsFileSystem.close();
             if(opcPackage != null) opcPackage.close();
-            if(outputStream != null) outputStream.close();
         }
     }
 
@@ -155,6 +154,7 @@ public class ExcelController {
             OutputStream os = getEncryptOutputStream(fs, excelpass);
             opc.save(os);
             opc.close();
+
             response.setHeader("Set-Cookie", "fileDownload=true; path=/");
             OutputStream resOS = response.getOutputStream();
             fs.writeFilesystem(resOS);

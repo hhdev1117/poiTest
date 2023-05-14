@@ -95,23 +95,19 @@ public class ExcelController {
 
     public void encodeDownload(SXSSFWorkbook workbook, HttpServletResponse response, String password) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = null;
-        InputStream inputStream = null;
         POIFSFileSystem poifsFileSystem = null;
         OPCPackage opcPackage = null;
 
         try {
-            // 2. mime-type을 설정한다.
+            // 1. mime-type을 설정한다.
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.setHeader("Content-Disposition", "Attachment; Filename=sample.xlsx");
-            //response.setHeader("Set-Cookie", "fileDownload=true; path=/");
 
-            // 1. SXSSFWorkbook을 ByteArrayOutputStream으로 내보낸다.
+            // 2. SXSSFWorkbook을 ByteArrayOutputStream으로 내보낸다.
             byteArrayOutputStream = new ByteArrayOutputStream();
             workbook.write(byteArrayOutputStream);
 
-            // 2. ByteArrayOutputStream을 InputStream으로 가져온다.
-            inputStream = new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
-
+            // 3. 비밀번호 적용.
             poifsFileSystem = new POIFSFileSystem();
 
             opcPackage = OPCPackage.open(new ByteArrayInputStream(byteArrayOutputStream.toByteArray()));
@@ -121,14 +117,13 @@ public class ExcelController {
 
             opcPackage.save(encryptor.getDataStream(poifsFileSystem));
 
-            OutputStream tempstream = response.getOutputStream();
-            poifsFileSystem.writeFilesystem(tempstream);
+            // 4. 비밀번호 적용된 파일 다운로드.
+            poifsFileSystem.writeFilesystem(response.getOutputStream());
 
         } catch (Exception e) {
             // Exception 처리하세요.
         } finally {
             if(byteArrayOutputStream != null) byteArrayOutputStream.close();
-            if(inputStream != null) inputStream.close();
             if(poifsFileSystem != null) poifsFileSystem.close();
             if(opcPackage != null) opcPackage.close();
         }
